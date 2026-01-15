@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("CLIENT")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  quotes       Quote[]  @relation("UserQuotes")
+  products     Product[] @relation("UserProducts")
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String
+  description   String
+  priceCents    Int
+  category      String?
+  mainImageUrl  String?
+  images        ProductImage[]
+  createdById   String?
+  createdBy     User?          @relation("UserProducts", fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  quoteItems    QuoteItem[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Quote {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  clientName    String
+  clientEmail   String
+  clientCompany String
+  clientPhone   String
+  clientDocument String?
+  observations  String?
+  totalCents    Int
+  status        String      @default("PENDING")
+  pdfUrl        String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  createdById   String?
+  createdBy     User?       @relation("UserQuotes", fields: [createdById], references: [id])
+  items         QuoteItem[]
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  productName String
+  quantity    Int
+  unitCents   Int
+  subtotalCents Int
+  createdAt   DateTime @default(now())
+}
