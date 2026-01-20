@@ -1,3 +1,4 @@
+// Hook para persistir estado no localStorage.
 import { useEffect, useState } from 'react';
 
 export function useLocalStorage<T>(key: string, initialValue: T) {

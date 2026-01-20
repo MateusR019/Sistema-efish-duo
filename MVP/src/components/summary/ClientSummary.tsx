@@ -1,5 +1,7 @@
+// Resumo das informacoes do cliente.
 import { Edit3 } from 'lucide-react';
 import type { ClientData } from '../../types';
+import { formatDocument } from '../../utils/format';
 
 type Props = {
   client: ClientData;
@@ -56,7 +58,7 @@ export const ClientSummary = ({
             CNPJ/CPF
           </dt>
           <dd className="text-sm font-medium text-slate-900">
-            {client.cnpjCpf}
+            {formatDocument(client.cnpjCpf)}
           </dd>
         </div>
       )}

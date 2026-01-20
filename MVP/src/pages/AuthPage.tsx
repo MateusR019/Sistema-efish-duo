@@ -1,3 +1,4 @@
+// Tela de login e cadastro de usuarios.
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -10,6 +11,7 @@ export const AuthPage = () => {
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [cnpj, setCnpj] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -36,17 +38,27 @@ export const AuthPage = () => {
           setError('Informe seu nome completo.');
           return;
         }
+        const normalizedCnpj = cnpj.replace(/\D/g, '');
+        if (!normalizedCnpj || normalizedCnpj.length !== 14) {
+          setError('Informe um CNPJ valido.');
+          return;
+        }
         if (password !== confirmPassword) {
           setError('As senhas não conferem.');
           return;
         }
-        const result = await registerUser({ nome: name, email, password });
+        const result = await registerUser({
+          nome: name,
+          email,
+          password,
+          cnpj: normalizedCnpj,
+        });
         if (!result.success) {
           setError(result.message ?? 'Não foi possível cadastrar.');
           return;
         }
         setFeedback('Cadastro realizado com sucesso!');
-        navigate(redirectTo, { replace: true });
+        navigate('/cadastro-analise', { replace: true });
       } else {
         const result = await login({ email, password });
         if (!result.success) {
@@ -118,6 +130,18 @@ export const AuthPage = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
+        )}
+        {mode === 'register' && (
+          <div>
+            <label className="text-sm font-medium text-slate-700">CNPJ</label>
+            <input
+              type="text"
+              value={cnpj}
+              onChange={(e) => setCnpj(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              placeholder="00.000.000/0000-00"
             />
           </div>
         )}

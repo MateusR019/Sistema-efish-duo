@@ -1,3 +1,4 @@
+// Coleta dados do cliente para o pedido.
 import { useNavigate } from 'react-router-dom';
 import { ClientForm } from '../components/forms/ClientForm';
 import { useAppContext } from '../context/AppContext';

@@ -1,8 +1,15 @@
+// Rotas HTTP de pedidos.
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, requireAdmin } from '../middleware/authMiddleware';
-import { createQuote, listQuotes } from '../services/quoteService';
+import {
+  createQuote,
+  getQuoteById,
+  listQuotes,
+  updateQuoteStatus,
+} from '../services/quoteService';
 import { sendEmail } from '../services/emailService';
+import { sendOrderToBling } from '../services/blingOrdersService';
 
 const router = Router();
 
@@ -27,16 +34,34 @@ const quoteSchema = z.object({
 
 router.post('/', authenticate, async (req, res) => {
   try {
-    const payload = quoteSchema.parse(req.body);
+    const body = req.body as Record<string, any>;
+    const isBudgetFormat = Boolean(body?.cliente && Array.isArray(body?.itens));
+    const parsed = isBudgetFormat
+      ? quoteSchema.parse({
+          clientName: body.cliente?.nome,
+          clientEmail: body.cliente?.email,
+          clientCompany: body.cliente?.empresa,
+          clientPhone: body.cliente?.telefone,
+          clientDocument: body.cliente?.cnpjCpf,
+          observations: body.observacoes,
+          items: (body.itens || []).map((item: any) => ({
+            productId: item?.produto?.id ? String(item.produto.id) : undefined,
+            productName: item?.produto?.nome,
+            quantity: Number(item?.quantidade || 0),
+            unitPrice: Number(item?.produto?.preco || 0),
+          })),
+        })
+      : quoteSchema.parse(body);
+
     const quote = await createQuote(
       {
-        clientName: payload.clientName,
-        clientEmail: payload.clientEmail,
-        clientCompany: payload.clientCompany,
-        clientPhone: payload.clientPhone,
-        clientDocument: payload.clientDocument,
-        observations: payload.observations,
-        items: payload.items.map((item) => ({
+        clientName: parsed.clientName,
+        clientEmail: parsed.clientEmail,
+        clientCompany: parsed.clientCompany,
+        clientPhone: parsed.clientPhone,
+        clientDocument: parsed.clientDocument,
+        observations: parsed.observations,
+        items: parsed.items.map((item) => ({
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantity,
@@ -64,7 +89,55 @@ router.post('/', authenticate, async (req, res) => {
 
 router.get('/', authenticate, requireAdmin, async (_req, res) => {
   const quotes = await listQuotes();
-  return res.json({ quotes });
+  const orders = quotes.map((quote) => ({
+    id: quote.id,
+    status: quote.status,
+    payload: {
+      customerName: quote.clientName,
+      total: quote.totalCents / 100,
+      totalPrice: quote.totalCents / 100,
+      items: quote.items,
+    },
+  }));
+  return res.json({ orders });
+});
+
+router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: 'ID invalido.' });
+  }
+  const quote = await getQuoteById(id);
+  if (!quote) {
+    return res.status(404).json({ message: 'Pedido nao encontrado.' });
+  }
+  if (quote.status === 'SENT') {
+    return res.status(400).json({ message: 'Pedido ja processado.' });
+  }
+  try {
+    const result = await sendOrderToBling(quote);
+    await updateQuoteStatus(id, 'SENT');
+    return res.json({ ok: true, data: result });
+  } catch (error) {
+    await updateQuoteStatus(id, 'FAILED');
+    const status = (error as Error & { status?: number }).status || 400;
+    return res.status(status).json({
+      message: (error as Error).message || 'Falha ao enviar pedido ao Bling.',
+    });
+  }
+});
+
+router.post('/:id/reject', authenticate, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: 'ID invalido.' });
+  }
+  const quote = await getQuoteById(id);
+  if (!quote) {
+    return res.status(404).json({ message: 'Pedido nao encontrado.' });
+  }
+  await updateQuoteStatus(id, 'REJECTED');
+  return res.json({ ok: true });
 });
 
 export default router;

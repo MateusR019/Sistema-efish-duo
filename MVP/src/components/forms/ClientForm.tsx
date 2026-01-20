@@ -1,3 +1,4 @@
+// Formulario de dados do cliente.
 import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 import type { ClientData } from '../../types';

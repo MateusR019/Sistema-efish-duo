@@ -1,3 +1,4 @@
+// Card de produto exibido no catalogo.
 import type { ChangeEvent } from 'react';
 import type { Product } from '../../types';
 import { formatCurrency, formatTitleCase } from '../../utils/format';
@@ -8,6 +9,8 @@ type Props = {
   onIncrease: () => void;
   onDecrease: () => void;
   onChangeQuantity: (value: number) => void;
+  showEdit?: boolean;
+  onEdit?: () => void;
 };
 
 export const ProductCard = ({
@@ -16,6 +19,8 @@ export const ProductCard = ({
   onIncrease,
   onDecrease,
   onChangeQuantity,
+  showEdit = false,
+  onEdit,
 }: Props) => {
   const imageSrc = product.imagem ?? product.imagens?.[0];
 
@@ -49,12 +54,28 @@ export const ProductCard = ({
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold text-slate-900">
-            {formatTitleCase(product.nome)}
-          </h3>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {formatTitleCase(product.nome)}
+            </h3>
+            {product.origem === 'local' && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                Local
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-600 line-clamp-3">
             {product.descricao}
           </p>
+          {(product.codigo || product.estoque !== undefined) && (
+            <div className="flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              {product.codigo && <span>Codigo: {product.codigo}</span>}
+              {product.estoque !== undefined && product.estoque !== null && (
+                <span>Estoque: {product.estoque}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-auto flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -85,9 +106,18 @@ export const ProductCard = ({
             <p className="text-xs uppercase tracking-wide text-slate-400">
               Subtotal
             </p>
-            <p className="text-base font-semibold text-slate-100">
+            <p className="text-base font-semibold text-slate-900">
               {formatCurrency(quantity * product.preco)}
             </p>
+            {showEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit?.()}
+                className="mt-2 inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-brand-500 hover:text-brand-600"
+              >
+                Editar
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+// Resumo lateral do carrinho e finalizacao.
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { formatCurrency, formatTitleCase } from '../../utils/format';
 import type { Product } from '../../types';

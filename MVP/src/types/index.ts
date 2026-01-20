@@ -1,3 +1,4 @@
+// Tipos e interfaces compartilhados.
 export type ClientData = {
   nome: string;
   email: string;
@@ -14,6 +15,9 @@ export type Product = {
   categoria?: string;
   imagem?: string;
   imagens?: string[];
+  codigo?: string;
+  estoque?: number | null;
+  origem?: 'local' | 'bling';
 };
 
 export type ProductInput = Omit<Product, 'id'>;
@@ -39,6 +43,7 @@ export type Budget = {
 };
 
 export type Role = 'CLIENT' | 'ADMIN';
+export type UserStatus = 'PENDING' | 'ACTIVE' | 'REJECTED';
 
 export type CompanyInfo = {
   nome: string;
@@ -52,8 +57,10 @@ export type AuthUser = {
   id: string;
   nome: string;
   email: string;
+  cnpjCpf?: string;
   role?: Role;
   isAdmin?: boolean;
+  status?: UserStatus;
 };
 
 export type Credentials = {

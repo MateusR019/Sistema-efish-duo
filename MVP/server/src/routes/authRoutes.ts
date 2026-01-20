@@ -1,3 +1,4 @@
+// Rotas HTTP de autenticacao.
 import { Router } from 'express';
 import { z } from 'zod';
 import { loginUser, registerUser } from '../services/authService';

@@ -1,3 +1,4 @@
+// Navegacao entre etapas do pedido.
 import { CheckCircle2, Circle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

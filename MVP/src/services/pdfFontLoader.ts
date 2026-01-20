@@ -1,3 +1,4 @@
+// Carrega fontes para gerar PDF.
 import robotoUrl from '../assets/Roboto-Regular.ttf?url';
 
 let fontPromise: Promise<string> | null = null;

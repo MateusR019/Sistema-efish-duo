@@ -1,0 +1,11 @@
+/data/
+*.db
+.env
+.env.*
+node_modules/
+dist/
+dist-ssr/
+*.local
+temp-*.js
+temp-*.txt
+api bling

@@ -1,3 +1,4 @@
+// Extensoes de tipos do Express.
 import type { UserRecord } from '.';
 
 declare global {

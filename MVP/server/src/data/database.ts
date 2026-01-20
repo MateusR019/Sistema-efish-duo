@@ -1,3 +1,4 @@
+// Inicializacao e acesso ao banco local.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../config/env';
@@ -7,6 +8,8 @@ const defaultData: DatabaseSchema = {
   users: [],
   products: [],
   quotes: [],
+  blingToken: null,
+  blingOauthStates: [],
 };
 
 const ensureDatabaseFile = async () => {

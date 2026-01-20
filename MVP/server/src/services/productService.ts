@@ -1,3 +1,4 @@
+// Servicos de produtos e estoque.
 import { readDatabase, updateDatabase } from '../data/database';
 import type { ProductInput, ProductRecord } from '../types';
 import { generateId, nowIso } from '../utils/helpers';

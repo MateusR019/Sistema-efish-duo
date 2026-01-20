@@ -1,5 +1,7 @@
+// Envio de emails e templates.
 import emailjs from '@emailjs/browser';
 import type { Budget } from '../types';
+import { formatDocument } from '../utils/format';
 import { formatCurrency } from '../utils/format';
 
 type Params = {
@@ -25,7 +27,9 @@ export const sendBudgetEmail = async ({ budget, pdfBase64 }: Params) => {
     client_email: budget.cliente.email,
     client_company: budget.cliente.empresa,
     client_phone: budget.cliente.telefone,
-    client_document: budget.cliente.cnpjCpf ?? 'Nao informado',
+    client_document: budget.cliente.cnpjCpf
+      ? formatDocument(budget.cliente.cnpjCpf)
+      : 'Nao informado',
     items: budget.itens
       .map(
         (item) =>

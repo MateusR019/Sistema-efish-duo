@@ -1,3 +1,4 @@
+// Servicos de autenticacao e sessao.
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';

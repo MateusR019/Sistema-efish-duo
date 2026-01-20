@@ -1,3 +1,4 @@
+// Middlewares de autenticacao e permissoes.
 import type { Request, Response, NextFunction } from 'express';
 import { getUserById, verifyToken } from '../services/authService';
 

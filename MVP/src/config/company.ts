@@ -1,3 +1,4 @@
+// Configuracoes de empresa, logos e textos.
 import type { CompanyInfo } from '../types';
 
 export const companyInfo: CompanyInfo = {

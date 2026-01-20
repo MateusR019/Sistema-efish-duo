@@ -1,3 +1,4 @@
+// Tela do catalogo e interacoes do carrinho.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProductCard } from '../components/products/ProductCard';
@@ -14,6 +15,7 @@ export const CatalogPage = () => {
     changeQuantity,
     removeItem,
     total,
+    isAdmin,
   } = useAppContext();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -37,6 +39,8 @@ export const CatalogPage = () => {
       category === 'todos' || product.categoria === category;
     return matchesQuery && matchesCategory;
   });
+
+  const hasLocalProducts = products.some((product) => product.origem === 'local');
 
   return (
     <div className="space-y-8">
@@ -93,9 +97,15 @@ export const CatalogPage = () => {
               {cat === 'todos' ? 'Todos' : cat}
             </button>
           ))}
-          <span className="ml-2 text-xs text-slate-500">
-            {filteredProducts.length} resultados
-          </span>
+          <div className="ml-2 flex items-center gap-3 text-xs text-slate-500">
+            {hasLocalProducts && (
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                Produto local
+              </span>
+            )}
+            <span>{filteredProducts.length} resultados</span>
+          </div>
         </div>
       </div>
 
@@ -131,6 +141,8 @@ export const CatalogPage = () => {
                 )
               }
               onChangeQuantity={(value) => changeQuantity(product.id, value, product)}
+              showEdit={isAdmin}
+              onEdit={() => navigate(`/produtos/editar/${product.id}`)}
             />
           ))}
           {!productsLoading && filteredProducts.length === 0 && (

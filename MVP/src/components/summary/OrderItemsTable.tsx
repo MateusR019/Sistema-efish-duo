@@ -1,3 +1,4 @@
+// Tabela com itens e totais do pedido.
 import { formatCurrency, formatTitleCase } from '../../utils/format';
 import type { Product } from '../../types';
 

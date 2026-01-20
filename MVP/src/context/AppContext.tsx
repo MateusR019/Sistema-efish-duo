@@ -1,3 +1,4 @@
+// Contexto global com estado de sessao e carrinho.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import type {
@@ -8,9 +9,16 @@ import type {
   ProductInput,
 } from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { fetchProducts, createProduct as createProductApi } from '../services/productsService';
-import { fetchMe, loginUser, registerUser } from '../services/authService';
-import { isAdminEmail } from '../utils/security';
+import {
+  fetchProducts,
+  createProduct as createProductApi,
+  updateProduct as updateProductApi,
+  fetchProductById,
+  fetchBlingProducts,
+  fetchBlingStock,
+  mapBlingProducts,
+} from '../services/productsService';
+import { fetchMe, loginUser, registerUser, logoutUser } from '../services/authService';
 
 type CartState = Record<
   string,
@@ -41,13 +49,18 @@ type AppContextValue = {
   setObservacoes: (value: string) => void;
   resetAll: () => void;
   createProduct: (product: ProductInput) => Promise<Product>;
+  updateProduct: (id: string, product: ProductInput) => Promise<Product>;
+  getProductById: (id: string) => Promise<Product | null>;
+  authReady: boolean;
   isAuthenticated: boolean;
+  isApproved: boolean;
   currentUser: AuthUser | null;
   isAdmin: boolean;
   registerUser: (payload: {
     nome: string;
     email: string;
     password: string;
+    cnpj: string;
   }) => Promise<AuthResult>;
   login: (payload: Credentials) => Promise<AuthResult>;
   logout: () => void;
@@ -75,57 +88,98 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     reset: resetObservacoes,
   } = useLocalStorage<string>('budget-observacoes', '');
   const {
-    value: authToken,
-    setValue: setAuthToken,
-    reset: resetAuthToken,
-  } = useLocalStorage<string | null>('budget-auth-token', null);
-  const { value: currentUser, setValue: setCurrentUser } = useLocalStorage<
+    value: currentUser,
+    setValue: setCurrentUser,
+  } = useLocalStorage<
     AuthUser | null
   >('budget-current-user', null);
+  const [authReady, setAuthReady] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
 
-  // Revalida usuario autenticado com o token salvo
+  // Revalida usuario autenticado por sessao
   useEffect(() => {
     let isMounted = true;
     const loadMe = async () => {
-      if (!authToken) {
-        setCurrentUser(null);
-        return;
-      }
       try {
-        const me = await fetchMe(authToken);
+        const me = await fetchMe();
         if (!isMounted) return;
         setCurrentUser(me);
         setClient((prev) => ({
           ...prev,
           nome: me.nome,
           email: me.email,
+          cnpjCpf: me.cnpjCpf ?? '',
         }));
       } catch (error) {
         console.error(error);
         if (!isMounted) return;
-        setAuthToken(null);
         setCurrentUser(null);
+      } finally {
+        if (isMounted) {
+          setAuthReady(true);
+        }
       }
     };
     loadMe();
     return () => {
       isMounted = false;
     };
-  }, [authToken, setAuthToken, setClient, setCurrentUser]);
+  }, [setClient, setCurrentUser]);
 
   // Carrega catalogo do backend
   useEffect(() => {
     let isMounted = true;
+    if (!authReady) {
+      return () => {
+        isMounted = false;
+      };
+    }
+    const approved = !currentUser?.status || currentUser.status === 'ACTIVE';
+    if (!currentUser || !approved) {
+      setCatalogProducts([]);
+      setProductsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
     const load = async () => {
       try {
         setProductsLoading(true);
-        const data = await fetchProducts(authToken ?? undefined);
+        const localProducts = await fetchProducts();
+        let blingProducts: Product[] = [];
+        let blingList: Awaited<ReturnType<typeof fetchBlingProducts>> = [];
+        let stockList: Awaited<ReturnType<typeof fetchBlingStock>> = [];
+        try {
+          blingList = await fetchBlingProducts();
+        } catch (blingError) {
+          console.error(blingError);
+          setProductsError(
+            'Bling indisponivel no momento. Mostrando produtos locais.',
+          );
+        }
+        if (blingList.length) {
+          const codes = blingList
+            .map((item) => item.codigo)
+            .filter(Boolean) as string[];
+          try {
+            stockList = await fetchBlingStock({ codes });
+          } catch (stockError) {
+            console.error(stockError);
+          }
+          blingProducts = mapBlingProducts(blingList, stockList);
+        }
         if (!isMounted) return;
-        setCatalogProducts(data);
-        setProductsError(null);
+        setCatalogProducts([...localProducts, ...blingProducts]);
+        if (!blingProducts.length) {
+          setProductsError(
+            (prev) =>
+              prev || 'Bling indisponivel no momento. Mostrando produtos locais.',
+          );
+        } else {
+          setProductsError(null);
+        }
       } catch (error) {
         console.error(error);
         if (!isMounted) return;
@@ -140,7 +194,7 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     return () => {
       isMounted = false;
     };
-  }, [authToken]);
+  }, [authReady, currentUser]);
 
   const cartItems = useMemo(
     () =>
@@ -155,11 +209,9 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
   const total = cartItems.reduce((acc, item) => acc + item.subtotal, 0);
   const products = useMemo(() => [...catalogProducts], [catalogProducts]);
 
-  const isAuthenticated = Boolean(authToken && currentUser);
-  const isAdmin =
-    currentUser?.role === 'ADMIN' ||
-    (currentUser?.email ? isAdminEmail(currentUser.email) : false) ||
-    currentUser?.isAdmin === true;
+  const isAuthenticated = Boolean(currentUser);
+  const isApproved = !currentUser?.status || currentUser.status === 'ACTIVE';
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.isAdmin === true;
 
   const updateClient = (data: Partial<ClientData>) => {
     setClient({ ...client, ...data });
@@ -210,32 +262,54 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     if (!isAdmin) {
       throw new Error('Apenas administradores podem adicionar produtos.');
     }
-    if (!authToken) {
-      throw new Error('Autentique-se para adicionar produtos.');
-    }
-    const created = await createProductApi(productInput, authToken);
+    const created = await createProductApi(productInput);
     setCatalogProducts((prev) => [...prev, created]);
     return created;
+  };
+
+  const updateProduct = async (id: string, productInput: ProductInput) => {
+    if (!isAdmin) {
+      throw new Error('Apenas administradores podem editar produtos.');
+    }
+    const updated = await updateProductApi(id, productInput);
+    setCatalogProducts((prev) =>
+      prev.map((item) => (String(item.id) === String(id) ? updated : item)),
+    );
+    return updated;
+  };
+
+  const getProductById = async (id: string) => {
+    const existing = catalogProducts.find((item) => String(item.id) === String(id));
+    if (existing) return existing;
+    try {
+      return await fetchProductById(id);
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   };
 
   const handleRegister = async ({
     nome,
     email,
     password,
+    cnpj,
   }: {
     nome: string;
     email: string;
     password: string;
+    cnpj: string;
   }): Promise<AuthResult> => {
     try {
-      const { token, user } = await registerUser({ nome, email, password });
-      setAuthToken(token);
+      const { user } = await registerUser({ nome, email, password, cnpj });
       setCurrentUser(user);
       setClient({
         ...client,
         nome: user.nome,
         email: user.email,
+        cnpjCpf: user.cnpjCpf ?? '',
       });
+      setAuthReady(true);
       return { success: true };
     } catch (error) {
       console.error(error);
@@ -251,14 +325,15 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     password,
   }: Credentials): Promise<AuthResult> => {
     try {
-      const { token, user } = await loginUser({ email, password });
-      setAuthToken(token);
+      const { user } = await loginUser({ email, password });
       setCurrentUser(user);
       setClient({
         ...client,
         nome: user.nome,
         email: user.email,
+        cnpjCpf: user.cnpjCpf ?? '',
       });
+      setAuthReady(true);
       return { success: true };
     } catch (error) {
       console.error(error);
@@ -270,8 +345,9 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
   };
 
   const logout = () => {
-    resetAuthToken();
+    logoutUser().catch(() => {});
     setCurrentUser(null);
+    setAuthReady(true);
     resetAll();
   };
 
@@ -290,7 +366,11 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     setObservacoes,
     resetAll,
     createProduct,
+    updateProduct,
+    getProductById,
+    authReady,
     isAuthenticated,
+    isApproved,
     currentUser,
     isAdmin,
     registerUser: handleRegister,

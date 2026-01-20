@@ -1,3 +1,4 @@
+// Leitura e validacao de variaveis de ambiente.
 import 'dotenv/config';
 import path from 'node:path';
 

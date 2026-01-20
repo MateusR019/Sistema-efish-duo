@@ -1,3 +1,4 @@
+// Funcoes utilitarias do backend.
 import { randomUUID } from 'node:crypto';
 
 export const nowIso = () => new Date().toISOString();

@@ -1,3 +1,4 @@
+// Rotas HTTP de produtos.
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate, requireAdmin } from '../middleware/authMiddleware';

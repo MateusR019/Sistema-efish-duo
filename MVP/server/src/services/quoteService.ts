@@ -1,3 +1,4 @@
+// Servicos de orcamento e pedido.
 import { readDatabase, updateDatabase } from '../data/database';
 import type { QuoteInput, QuoteItemRecord, QuoteRecord } from '../types';
 import { generateId, generateOrderNumber, nowIso } from '../utils/helpers';
@@ -10,6 +11,25 @@ export const listQuotes = async (): Promise<QuoteRecord[]> => {
 export const getQuoteById = async (id: string) => {
   const db = await readDatabase();
   return db.quotes.find((quote) => quote.id === id) ?? null;
+};
+
+export const updateQuoteStatus = async (
+  id: string,
+  status: QuoteRecord['status'],
+): Promise<QuoteRecord | null> => {
+  return updateDatabase((db) => {
+    const index = db.quotes.findIndex((quote) => quote.id === id);
+    if (index === -1) return null;
+    const current = db.quotes[index];
+    if (!current) return null;
+    const updated: QuoteRecord = {
+      ...current,
+      status,
+      updatedAt: nowIso(),
+    };
+    db.quotes[index] = updated;
+    return updated;
+  });
 };
 
 export const createQuote = async (

@@ -1,3 +1,4 @@
+// Servicos de envio de emails.
 type SendEmailParams = {
   to: string[];
   subject: string;

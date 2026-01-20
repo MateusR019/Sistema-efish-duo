@@ -1,3 +1,4 @@
+// Tipos compartilhados do backend.
 export type Role = 'CLIENT' | 'ADMIN';
 
 export type UserRecord = {
@@ -53,7 +54,7 @@ export type QuoteRecord = {
   clientDocument?: string;
   observations?: string;
   totalCents: number;
-  status: 'PENDING' | 'SENT' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'SENT' | 'APPROVED' | 'REJECTED' | 'FAILED';
   pdfUrl?: string;
   createdAt: string;
   updatedAt: string;
@@ -65,6 +66,22 @@ export type DatabaseSchema = {
   users: UserRecord[];
   products: ProductRecord[];
   quotes: QuoteRecord[];
+  blingToken?: BlingToken | null;
+  blingOauthStates?: BlingOauthState[];
+};
+
+export type BlingToken = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  tokenType?: string;
+  scope?: string;
+  createdAt: string;
+};
+
+export type BlingOauthState = {
+  state: string;
+  createdAt: string;
 };
 
 export type QuoteItemInput = {

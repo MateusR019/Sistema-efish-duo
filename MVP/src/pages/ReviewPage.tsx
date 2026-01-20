@@ -1,3 +1,4 @@
+// Resumo final do pedido antes de enviar.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClientSummary } from '../components/summary/ClientSummary';
@@ -90,13 +91,13 @@ export const ReviewPage = () => {
 
       await sendOrderToBling(budget);
 
-      setFeedback('Pedido enviado para o Bling com sucesso.');
+      setFeedback('Pedido enviado para aprovacao do administrador.');
       resetAll();
       navigate('/');
     } catch (err) {
       console.error(err);
       setError(
-        'Nao foi possivel enviar o pedido ao Bling. Verifique a URL configurada.',
+        'Nao foi possivel enviar o pedido para aprovacao. Verifique o servidor.',
       );
     } finally {
       setLoadingBling(false);
@@ -188,20 +189,9 @@ export const ReviewPage = () => {
             type="button"
             onClick={handleSendToBling}
             disabled={loadingBling}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#F7931E] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#d67d15] disabled:cursor-not-allowed disabled:bg-orange-300"
+            className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {loadingBling ? (
-              'Enviando para Bling...'
-            ) : (
-              <>
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/5/56/Bling-logo.png"
-                  alt="Bling logo"
-                  className="h-5 w-5"
-                />
-                Enviar para o Bling
-              </>
-            )}
+            {loadingBling ? 'Enviando para aprovacao...' : 'Enviar para aprovacao'}
           </button>
         </div>
       </div>

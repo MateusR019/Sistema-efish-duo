@@ -1,3 +1,4 @@
+// Helpers de seguranca e validacao.
 import { adminEmails } from '../config/auth';
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer) => {

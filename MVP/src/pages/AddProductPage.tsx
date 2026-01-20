@@ -1,7 +1,9 @@
+// Cadastro e edicao de produtos.
 import type { ChangeEvent, FormEvent } from 'react';
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { uploadImage } from '../services/uploadService';
 
 type FormState = {
   nome: string;
@@ -20,15 +22,34 @@ const initialForm: FormState = {
 };
 
 export const AddProductPage = () => {
-  const { createProduct, products, productsLoading } = useAppContext();
+  const { createProduct, updateProduct, getProductById, products, productsLoading } = useAppContext();
   const [form, setForm] = useState<FormState>(initialForm);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEdit = Boolean(id);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+
+  const toAbsoluteUrl = (value: string) => {
+    const raw = value.trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (typeof window === 'undefined') return raw;
+    const origin = window.location.origin;
+    const basePrefix = window.location.pathname.startsWith('/efish') ? '/efish' : '';
+    if (raw.startsWith('/')) {
+      if (basePrefix && raw.startsWith(`${basePrefix}/`)) {
+        return `${origin}${raw}`;
+      }
+      return `${origin}${basePrefix}${raw}`;
+    }
+    return `${origin}${basePrefix}/${raw}`;
+  };
 
   const categoryOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -39,6 +60,47 @@ export const AddProductPage = () => {
     });
     return Array.from(unique).sort();
   }, [products]);
+
+  useEffect(() => {
+    if (!isEdit || !id) return;
+    let isMounted = true;
+    const loadProduct = async () => {
+      setIsLoadingProduct(true);
+      const product = await getProductById(id);
+      if (!isMounted) return;
+      if (!product) {
+        setError('Produto nao encontrado.');
+        setIsLoadingProduct(false);
+        return;
+      }
+      setForm({
+        nome: product.nome,
+        descricao: product.descricao,
+        preco: String(product.preco),
+        categoria: product.categoria ?? '',
+        imagemUrl: toAbsoluteUrl(product.imagem ?? product.imagens?.[0] ?? ''),
+      });
+      setFilePreview(null);
+      if (product.categoria) {
+        const exists = categoryOptions.includes(product.categoria);
+        if (exists) {
+          setSelectedCategory(product.categoria);
+          setCustomCategory('');
+        } else {
+          setSelectedCategory('__other');
+          setCustomCategory(product.categoria);
+        }
+      } else {
+        setSelectedCategory('');
+        setCustomCategory('');
+      }
+      setIsLoadingProduct(false);
+    };
+    loadProduct();
+    return () => {
+      isMounted = false;
+    };
+  }, [isEdit, id, getProductById, categoryOptions]);
 
   const handleChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -82,7 +144,7 @@ export const AddProductPage = () => {
     setForm((prev) => ({ ...prev, categoria: value }));
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setIsSubmitting(true);
     setFeedback(null);
@@ -107,29 +169,49 @@ export const AddProductPage = () => {
       return;
     }
 
+    let imageUrl = form.imagemUrl.trim()
+      ? toAbsoluteUrl(form.imagemUrl)
+      : undefined;
+    if (filePreview) {
+      try {
+        imageUrl = await uploadImage(filePreview);
+      } catch (error) {
+        console.error(error);
+        setError('Nao foi possivel enviar a imagem.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const payload = {
       nome: form.nome.trim(),
       descricao: form.descricao.trim(),
       preco: priceValue,
       categoria: form.categoria || undefined,
-      imagem: filePreview ?? (form.imagemUrl || undefined),
+      imagem: imageUrl,
     };
 
-    createProduct(payload)
-      .then((newProduct) => {
-        setFeedback(`Produto ${newProduct.nome} adicionado com sucesso!`);
-        setForm(initialForm);
-        setFilePreview(null);
-        setSelectedCategory('');
-        setCustomCategory('');
-      })
-      .catch((err) => {
-        console.error(err);
-        setError(
-          (err as Error).message || 'Nao foi possivel adicionar o produto.',
-        );
-      })
-      .finally(() => setIsSubmitting(false));
+    try {
+      const saved = isEdit && id
+        ? await updateProduct(id, payload)
+        : await createProduct(payload);
+      setFeedback(
+        isEdit
+          ? `Produto ${saved.nome} atualizado com sucesso!`
+          : `Produto ${saved.nome} adicionado com sucesso!`,
+      );
+      setForm(initialForm);
+      setFilePreview(null);
+      setSelectedCategory('');
+      setCustomCategory('');
+    } catch (err) {
+      console.error(err);
+      setError(
+        (err as Error).message || 'Nao foi possivel adicionar o produto.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -137,10 +219,12 @@ export const AddProductPage = () => {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-900">
-            Cadastrar novo produto/servico
+            {isEdit ? 'Editar produto/servico' : 'Cadastrar novo produto/servico'}
           </h2>
           <p className="text-sm text-slate-500">
-            Os itens criados aqui ficam disponiveis para todos os usuarios autenticados.
+            {isEdit
+              ? 'Atualize os dados e salve para refletir no catalogo.'
+              : 'Os itens criados aqui ficam disponiveis para todos os usuarios autenticados.'}
           </p>
         </div>
         <button
@@ -153,6 +237,11 @@ export const AddProductPage = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {isLoadingProduct && (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            Carregando produto...
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="text-sm font-medium text-slate-700">
@@ -243,13 +332,13 @@ export const AddProductPage = () => {
             onChange={handleImageUpload}
             className="mt-2 w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-600"
           />
-          {filePreview && (
+          {(filePreview || form.imagemUrl) && (
             <div className="mt-3">
               <p className="text-xs uppercase tracking-wide text-slate-500">
                 Preview
               </p>
               <img
-                src={filePreview}
+                src={filePreview ?? form.imagemUrl}
                 alt="Pre-visualizacao do produto"
                 className="mt-1 h-32 w-32 rounded-xl object-cover"
               />
@@ -274,7 +363,11 @@ export const AddProductPage = () => {
           disabled={isSubmitting}
           className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isSubmitting ? 'Salvando...' : 'Adicionar ao catalogo'}
+          {isSubmitting
+            ? 'Salvando...'
+            : isEdit
+              ? 'Salvar alteracoes'
+              : 'Adicionar ao catalogo'}
         </button>
       </form>
     </div>
